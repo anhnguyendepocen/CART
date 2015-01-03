@@ -1,0 +1,45 @@
+---
+title: "Classification and Regression Trees"
+author: "Clay Ford"
+date: "Spring 2015"
+output: beamer_presentation
+---
+
+## In this workshop
+
+- What are and how to read classification and regression trees 
+- How to create classification and regression trees in R
+- Overview of how trees are constructed
+- How to interpret output from building trees
+- How to improve prediction accuracy of trees
+
+## What are Classification and Regression Trees?
+
+They are basically _decision trees_ that make predictions based on binary splits. 
+
+**Classification trees** predict a classification (categorical response). 
+
+**Regression trees** predict means or medians (continuous response).
+
+They are non-parametric in nature in that they don't involve p-values.
+
+## Example of Classification Tree
+
+![classification tree example](ctree_ex.png)
+
+## Example of Regression Tree
+
+![Regression tree example](rtree_ex.png)
+
+## How to read the trees
+
+Start at top:  
+- go left if condition is true  
+- otherwise go right  
+
+Repeat process until reaching a _terminal node_, or _leaf_. The value in the leaf is the predicted value.
+
+Hence decision trees are easily interpreted by non-experts. 
+
+## Using R to build trees
+
