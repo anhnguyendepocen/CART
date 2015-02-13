@@ -21,7 +21,7 @@ They are basically _decision trees_ that make predictions based on binary splits
 
 **Regression trees** predict means or medians (continuous response).
 
-They are non-parametric in nature in that they don't involve p-values.
+They are non-parametric in nature in that they don't make distributional assumptions about the response or prediction errors.
 
 ## Example of Classification Tree
 
@@ -33,13 +33,130 @@ They are non-parametric in nature in that they don't involve p-values.
 
 ## How to read the trees
 
-Start at top:  
+Start at the top of the tree, called the _root node_:
+
 - go left if condition is true  
 - otherwise go right  
 
-Repeat process until reaching a _terminal node_, or _leaf_. The value in the leaf is the predicted value.
+Repeat process at subsequent _nodes_ until reaching a _terminal node_, or _leaf_. The value in the leaf is the predicted value.
 
-Hence decision trees are easily interpreted by non-experts. 
+Hence classification and regression trees tend to be easier to interpret than traditional linear modeling output. 
+
+However, that does not mean they always "perform" better than linear models. 
 
 ## Using R to build trees
+
+There are several packages available for building decision trees in R.
+
+The package we'll use in this workshop is `rpart`, which is short for "Recursive Partitioning".
+
+The main function is `rpart`. The basic steps to fitting and plotting a tree are:
+
+1. `fit <- rpart(response ~ x1 + x2 + x3..., data=DF)` where DF is your data frame and x1, x2, ... are your predictors.
+2. `plot(fit)`
+3. `text(fit)`
+
+If `response` is a factor, then a classification tree is built. Otherwise a regression tree is built.
+
+## Plotting tree branches
+
+Calling `plot` on an rpart object produces the tree without labels. Additional arguments of note include
+
+- `uniform`: is vertical spacing between nodes uniform? The default is FALSE. 
+
+- `branch`: number between 0 and 1 that controls the shape of branches. 1 draws square-shouldered branches, 0 draws V-shaped branches, and values in between draw 
+a combination. Default is 1.
+
+- `compress`: should routine attempt a more compact arrangement of tree? Default is FALSE.
+
+- `margin`: extra fraction of white space to leave around the borders of the tree. Default is 0.
+
+
+## Adding text to tree branches
+
+Calling `text` on an rpart object adds text labels to tree branches. Additional arguments of note include
+
+- `use.n`: show number of observations in leaves? Default is FALSE.
+
+- `all`: label all nodes with additional information? Default is FALSE. 
+
+- `cex`: character expansion, expressed as a fraction of 1 (normal size). Greater than 1, bigger text; less than 1, smaller text.
+
+Let's go to R!
+
+## How trees are constructed
+
+The basic process:
+
+1. Examine all possible splits for all possible covariates and choose the split which leads to 2 groups that are "purer" than the current group. That is, take the split that produces the largest improvement in _purity_.
+2. Repeat step 1 for the 2 new groups. Hence the name _recursive partitioning_.
+3. Repeat steps 1 and 2 for all subsequent groups until some stopping criterion is fulfilled. 
+
+In the `rpart` package, a node must have at least 20 observations for it to attempt a split. This is a setting that can be modified.
+
+
+## Measures of purity - Regression Trees
+
+For regression trees, the usual measure of purity is the Residual Sum of Squares (RSS). We select a split such that the RSS is minimized:
+
+$$RSS = \sum^J_{j=1} \sum_{i \in R_{j}} (y_i - \hat{y}_{R_{j}})^2$$
+
+where $J$ is the number of groups, $R_{j}$ are the _regions_ of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ group.
+
+## Measures of purity - Classification Trees
+
+For classification trees, the usual measure of purity is the _Gini index_. We select a split such that the Gini index is minimized:
+
+$$ G = \sum^K_{k=1}\hat{p}_{mk}(1-\hat{p}_{mk})$$
+
+where $K$ is the number of classes and $\hat{p}_{mk}$ is the proportion of observations in the _m_th region that are from the _k_th class.
+
+## Measuring improvement in purity
+
+The improvement in purity as displayed in `rpart` is calculated as follows:
+
+$$\Delta I = n[p(A)I(A) - p(A_{L})I(A_{L}) -  p(A_{R})I(A_{R})] $$
+
+where $p(A)$ is the proportion of observations in the current node; $p(A_{L})$ and $p(A_{R})$ are the proportion of observations sent to the left and right child nodes, respectively; $I(A)$, $I(A_{L})$ and $I(A_{L})$ are the measures of impurity in each node; and $n$ is the total number of observations.
+
+The actual values of improvement are not that important but their relative size gives an indication of the utility of the variables.
+
+## The summary of tree construction
+
+A summary of the tree construction process can be viewed with the `summary` function. Beware, it produces a lot of output!
+
+It displays the _primary_ split for each node as well as the four "runner-up" splits (the splits that came closest to the chosen split in terms of increasing purity).
+
+It also displays five _surrogate_ splits. These are splits for observations that are missing data for the primary split.
+
+Any observation missing the primary split variable is classified using the first surrogate split, or if missing that, the second surrogate, and so on.
+
+Let's go to R.
+
+## Pruning trees
+
+Once we grow a tree, we usually need to _prune_ it. That is, we need to trim off the bottom branches.
+
+A tree that is too large can overfit the data and not perform well for data not used in growing the tree.
+
+On the other hand, a tree that is too small will not include important predictors and also not perform well.
+
+Therefore pruning a tree can pose a challenge.
+
+## A Large Tree - overfits data
+
+![Big tree example](tree_big.png)
+
+## A Small Tree - underfits data
+
+![Big tree example](tree_small.png)
+
+## How pruning works
+
+
+
+## How to interpret output from building trees
+
+
+## How to improve prediction accuracy of trees
 
