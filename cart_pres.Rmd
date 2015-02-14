@@ -95,14 +95,6 @@ The basic process:
 In the `rpart` package, a node must have at least 20 observations for it to attempt a split. This is a setting that can be modified.
 
 
-## Measures of purity - Regression Trees
-
-For regression trees, the usual measure of purity is the Residual Sum of Squares (RSS). We select a split such that the RSS is minimized:
-
-$$RSS = \sum^J_{j=1} \sum_{i \in R_{j}} (y_i - \hat{y}_{R_{j}})^2$$
-
-where $J$ is the number of groups, $R_{j}$ are the _regions_ of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ group.
-
 ## Measures of purity - Classification Trees
 
 For classification trees, the usual measure of purity is the _Gini index_. We select a split such that the Gini index is minimized:
@@ -111,7 +103,16 @@ $$ G = \sum^K_{k=1}\hat{p}_{mk}(1-\hat{p}_{mk})$$
 
 where $K$ is the number of classes and $\hat{p}_{mk}$ is the proportion of observations in the _m_th region that are from the _k_th class.
 
-## Measuring improvement in purity
+## Measures of purity - Regression Trees
+
+For regression trees, the usual measure of purity is the Residual Sum of Squares (RSS). We select a split such that the RSS is minimized:
+
+$$RSS = \sum^J_{j=1} \sum_{i \in R_{j}} (y_i - \hat{y}_{R_{j}})^2$$
+
+where $J$ is the number of groups, $R_{j}$ are the _regions_ of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ group.
+
+
+## Measuring improvement in purity - Classification Trees
 
 The improvement in purity as displayed in `rpart` is calculated as follows:
 
@@ -120,6 +121,14 @@ $$\Delta I = n[p(A)I(A) - p(A_{L})I(A_{L}) -  p(A_{R})I(A_{R})] $$
 where $p(A)$ is the proportion of observations in the current node; $p(A_{L})$ and $p(A_{R})$ are the proportion of observations sent to the left and right child nodes, respectively; $I(A)$, $I(A_{L})$ and $I(A_{L})$ are the measures of impurity in each node; and $n$ is the total number of observations.
 
 The actual values of improvement are not that important but their relative size gives an indication of the utility of the variables.
+
+## Measuring improvement in purity - Regression Trees
+
+The improvement in purity as displayed in `rpart` is calculated as follows:
+
+$$\Delta I = 1 - (SS_{right} + SS_{left})/SS_{parent}$$
+
+where $SS$ is the respective sum of squares for the parent and children nodes: $\sum (y_{i} - \bar{y})^2$
 
 ## The summary of tree construction
 
@@ -153,6 +162,50 @@ Therefore pruning a tree can pose a challenge.
 
 ## How pruning works
 
+Pruning is basically variable selection. We build a large tree and then _prune_ branches that don't significantly improve performance. 
+
+The "significance" in pruning is achieved by minimizing the following cost function:
+
+$$R_{\alpha}(T) = R(T) + \alpha|T| $$
+
+where $\alpha$ is the complexity parameter ranging from 0 to $\infty$, $R(T)$ is the _risk_ of the tree (ie, the proportion misclassified), and $|T|$ is the number of terminal nodes (leaves) in a tree. Thus $R_{\alpha}(T)$ is the risk of a tree for a given $\alpha$.
+
+We build a large tree, minimize $R_{\alpha}(T)$ over several values of $\alpha$ to obtain a sequence of pruned trees, and then select the pruned tree with the smallest risk.
+
+## The complexity parameter, $\alpha$
+
+$\alpha$ measures the _cost_ of adding another variable to the tree. In other words, there's a penalty to pay for adding more branches to a tree. $\alpha$ is the price you pay to add more branches.
+
+$$R_{\alpha}(T) = R(T) + \alpha|T| $$
+
+If $\alpha$ is small, the penalty is small and the tree will be large. The minimal value is achieved by having lower rates of misclassifications.
+
+If $\alpha$ is large, the penalty is large and the tree will be small. The minimal value is achieved by having fewer terminal nodes (leaves).
+
+## Selecting the optimal $\alpha$
+
+We use K-fold cross validation to help us find the optimal $\alpha$. That is, we divide our data into K folds (or sets), and then for each K:
+
+1. Hold out set K and grow a large tree with the other folds  
+2. Obtain a sequence of best subtrees as a function of $\alpha$  
+3. Evaluate the error for the left out set K (misclassification rate for classification trees; mean squared prediction error for regression trees)   
+4. Average the results for each value of $\alpha$ and pick $\alpha$ to minimize the error.
+
+Fortunately, `rpart` does this for us with a default of K = 10.
+
+## Pruning in `rpart`
+
+The pruning results can be viewed with the `printcp` function.
+
+- `CP`: the complexity parameter $\alpha$ scaled by the number of misclassifications in a model with no splits.  
+- `nsplit`: number of splits (number of nodes is `1 + nsplit`)  
+- `rel error`: relative error (calculated with same data used to build tree)
+- `xerror`: cross-validated error rate (calculated with held out data)  
+- `xstd`:  cross-validated standard error
+
+Use the `plotcp` function to plot `xerror` vs. `cp`.
+
+Let's go to R.
 
 
 ## How to interpret output from building trees
