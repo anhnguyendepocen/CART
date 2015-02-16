@@ -338,13 +338,36 @@ SS3 <- with(forbes[forbes$marketvalue >= 89.335,],
             sum((profits - mean(profits))^2))
 1 - (SS2 + SS3)/SS1
 
+# Note this is also the R-squared if we regress profits on the grouping
+# indicator (marketvalue >= 89.335):
+summary(lm(profits ~ (marketvalue < 89.335), data=forbes))
+
+
 # Compare primary splits:
 #   marketvalue < 89.335  to the left,  improve=0.23748450, (0 missing)
 #   sales       < 112.85  to the left,  improve=0.13006880, (0 missing)
 
-plot(profits ~ marketvalue, data=forbes)
-abline(v=89.335, col="red")
+# compare primary splits with stripcharts:
+op <- par(mfrow=c(1,2))
+stripchart(profits ~ (marketvalue < 89.335), data=forbes, main="marketvalue < 89.335", 
+           vertical = T, pch=1, method = "jitter")
+# abline(h=89.335, col="red")
+stripchart(profits ~ (sales < 112.85), data=forbes, main="sales < 112.85",
+           vertical = T, pch=1, method = "jitter")
+# abline(h=112.85, col="red")
+par(op)
 
+
+# Node number 2: 1962 observations,    complexity param=0.04258786
+# mean=0.2695821, MSE=1.898379 
+# left son=4 (1845 obs) right son=5 (117 obs)
+# Primary splits:
+#   marketvalue < 32.715  to the left,  improve=0.07106272, (0 missing)
+
+# Again notice improve=0.07106272 is simply the R-squared when regressing the 
+# grouping indicator (marketvalue < 32.715) on profits for those data with
+# marketvalue < 89.335.
+summary(lm(profits ~ (marketvalue < 32.715), data=forbes, subset= marketvalue < 89.335))
 
 
 # Tree pruning ------------------------------------------------------------
@@ -413,7 +436,180 @@ text(ftree2, use.n=TRUE)
 
 
 
+# Making predictions with trees -------------------------------------------
+
+# Classification trees
+# Predictions for same data used to build tree
+
+# Return probability predictions
+predict(gfit2)
+# vector of predicted classifications as a level number
+predict(gfit2, type="vector")
+# vector of predicted classifications as a level name
+predict(gfit2, type="class")
+# matrix of predicted class, class counts in terminal node, class probabilities
+# in the node, and the proportion of observations in the terminal node.
+predict(gfit2, type="matrix")
+
+# create a confusion matrix
+(cm <- table(predict(gfit2, type="class"), glaucoma$Class))
+addmargins(cm)
+
+# predicting with new data; must use a data frame; the predictors referred to in
+# the right side of the formula must be present by name in newdata
+
+# the following does not work
+newd <- data.frame(varg=c(0.2,0.3), mhcg=c(0.1,0.2))
+predict(gfit2, newdata = newd, type="class")
+
+# a workaround in this case
+newd <- glaucoma[sample(nrow(glaucoma),size=2),]
+newd$varg <- c(0.2,0.3)
+newd$mhcg <- c(0.1,0.2)
+predict(gfit2, newdata = newd, type="class")
+
+# Regression trees
+# Predictions for same data used to build tree
+
+# return predicted mean
+predict(ftree2)
+
+
+
 # Bagging and Random Forests ----------------------------------------------
+
+
+# The decision on how to prune a tree can vary between runs of cross-validation.
+
+# For example, let's build 50 trees and check the minimum CV standard error for
+# the suggested amount of pruning
+
+gfit <- rpart(Class ~ ., data=glaucoma)
+
+# view the cp table
+gfit$cptable 
+# view "xerror" column of the cp table
+gfit$cptable[,"xerror"] 
+# get the location of the minimum xerror value
+m <- which.min(gfit$cptable[,"xerror"]) 
+# use that location to identify the number of splits
+gfit$cptable[min,"nsplit"]
+
+# now build a loop to do this 50 times
+ns <- numeric(50)
+for(i in 1:50){
+  gfit <- rpart(Class ~ ., data=glaucoma)
+  m <- which.min(gfit$cptable[,"xerror"]) 
+  ns[i] <- gfit$cptable[m,"nsplit"]
+}
+table(ns)
+
+# Notice the variability in the suggested number of tree prunings. Two methods 
+# that help reduce the variance of decision trees and improve performace is
+# bagging and random forests.
+
+
+
+
+# install.packages("randomForest")
+library(randomForest)
+
+# classification
+
+# bagging
+# set mtry equal to the number of all predictors
+set.seed(123)
+bag.gfit <- randomForest(Class ~ ., data=glaucoma, mtry=62, importance = TRUE)
+bag.gfit
+
+
+
+# notice the confusion matrix is provided. To calculate it by hand:
+table(glaucoma$Class, predict(bag.gfit))
+
+# To really see the effectiveness of bagging
+# train <- c(sample(1:98,98/2), sample(99:nrow(glaucoma), 98/2))
+# 
+# gfit.Train <- rpart(Class ~ ., data=glaucoma, subset=train)
+# printcp(gfit.Train)
+# plotcp(gfit.Train)
+# gfit.TrainP <- prune(gfit.Train, cp=0.21)
+# table(glaucoma$Class[-train], predict(gfit.TrainP, type="class", newdata=glaucoma[-train,]))
+# 
+# bag.gfit <- randomForest(Class ~ ., data=glaucoma, subset=train, mtry=62, importance = TRUE)
+# bag.gfit
+# table(glaucoma$Class[-train], predict(bag.gfit, type="class", newdata=glaucoma[-train,]))
+
+
+varImpPlot(bag.gfit)
+varImpPlot(bag.gfit, n.var = 15)
+
+
+
+
+
+# random forest
+# mtry by default set to sqrt(p) for classification trees
+set.seed(123)
+rf.gfit <- randomForest(Class ~ ., data=glaucoma, importance = TRUE)
+rf.gfit
+
+# Extract a single tree from a forest.
+getTree(bag.gfit, k=4, labelVar=TRUE)
+plot(rf.gfit)
+
+varImpPlot(rf.gfit, n.var = 15)
+
+# regression
+
+# bagging
+# set mtry equal to the number of all predictors
+set.seed(123)
+bag.ftree <- randomForest(profits ~ assets + marketvalue + sales, data=forbes, 
+                          mtry=3, importance = TRUE)
+bag.ftree
+varImpPlot(bag.ftree)
+
+# random forest
+set.seed(123)
+rf.ftree <- randomForest(profits ~ assets + marketvalue + sales, data=forbes, 
+                          importance = TRUE)
+rf.ftree
+varImpPlot(rf.ftree)
+
+
+# outakes
+
+
+
+
+
+pm1 <- seq(0,1,0.01)
+pm2 <- 1 - pm1
+class <- 1 - pmax(pm1,pm2)
+gini <- pm1*(1-pm1) + pm2*(1-pm2)
+plot(pm1, class, type="l", xlab="Proportion belonging to class 1", ylab="impurity", 
+     ylim=c(0,0.6), main=("Gini vs. Misclassification\nfor response with two possible classifications"))
+lines(pm1, gini, type="l", col="red")
+legend("topright", legend = c("Gini Index", "Misclassification Error"), 
+       col = c("red","black"),lty = 1)
+abline(h=c(0.3,0.5), lty=c(2,3))
+
+
+# For example, in a two-class problem with 400 observations in each class 
+# (denote this by (400, 400)), suppose one split created nodes (300, 100) and 
+# (100, 300), while the other created nodes (200, 400) and (200, 0). Both splits
+# produce a misclassification rate of 0.25, but the second split produces a pure
+# node and is probably preferable.
+
+800*((0.5)*(0.5) - (0.5)*(300/400)*(100/400) - (0.5)*(300/400)*(100/400))
+
+800*((0.5)*(0.5) - (0.75)*(200/600)*(400/600) - (0.25)*(200/200)*(0/200))
+
+(300/400)*(100/400) + (300/400)*(100/400)
+
+(200/600)*(400/600) + (200/200)*(0/200)
+
 
 
 

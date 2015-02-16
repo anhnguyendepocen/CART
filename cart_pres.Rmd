@@ -95,21 +95,44 @@ The basic process:
 In the `rpart` package, a node must have at least 20 observations for it to attempt a split. This is a setting that can be modified.
 
 
-## Measures of purity - Classification Trees
+## Measures of impurity - Classification Trees
 
-For classification trees, the usual measure of purity is the _Gini index_. We select a split such that the Gini index is minimized:
+For classification trees, the usual measure of impurity is the _Gini index_. We select a split such that the Gini index is minimized:
 
 $$ G = \sum^K_{k=1}\hat{p}_{mk}(1-\hat{p}_{mk})$$
 
-where $K$ is the number of classes and $\hat{p}_{mk}$ is the proportion of observations in the _m_th region that are from the _k_th class.
+where $K$ is the number of classes and $\hat{p}_{mk}$ is the proportion of observations in the _m_th group that are from the _k_th class.
 
-## Measures of purity - Regression Trees
+## Why use the Gini index?
 
-For regression trees, the usual measure of purity is the Residual Sum of Squares (RSS). We select a split such that the RSS is minimized:
+Simply put, it's more _sensitive_ than misclassification rate:
+```{r, echo=FALSE}
+pm1 <- seq(0,1,0.01)
+pm2 <- 1 - pm1
+class <- 1 - pmax(pm1,pm2)
+gini <- pm1*(1-pm1) + pm2*(1-pm2)
+plot(pm1, class, type="l", xlab="Proportion belonging to class 1", ylab="impurity", 
+     ylim=c(0,0.6), main=("Gini vs. Misclassification\nfor two-class response"))
+lines(pm1, gini, type="l", col="red")
+legend("topright", legend = c("Gini Index", "Misclassification Error"), 
+       col = c("red","black"),lty = 1)
+```
 
-$$RSS = \sum^J_{j=1} \sum_{i \in R_{j}} (y_i - \hat{y}_{R_{j}})^2$$
+## Gini index vs misclassification rate example
 
-where $J$ is the number of groups, $R_{j}$ are the _regions_ of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ group.
+Let's say we have a two-class response with 400 observations in each class (400, 400).
+
+Suppose when growing a tree we have two splits to consider:
+
+1. nodes with (300, 100) and (100, 300)    
+2. nodes with (200, 400) and (200, 0)    
+
+Both splits produce a misclassification rate of $200/800 = 0.25$. There is no preferred split.
+
+But the second split produces a pure node and is probably preferable. The Gini index captures this:   
+$(300/400)\times(100/400) + (300/400)\times(100/400) = 0.375$   
+$(200/600)\times(400/600) + (200/200)\times(0/200) = 0.222$   
+The second split has nodes with lower _impurity_.
 
 
 ## Measuring improvement in purity - Classification Trees
@@ -122,13 +145,40 @@ where $p(A)$ is the proportion of observations in the current node; $p(A_{L})$ a
 
 The actual values of improvement are not that important but their relative size gives an indication of the utility of the variables.
 
+## Measuring improvement in purity - example cont'd
+
+Let's say we have a two-class response with 400 observations in each class (400/400).
+
+Suppose when growing a tree we have two splits to consider:
+
+1. nodes with 300/100 and 100/300    
+2. nodes with 200/400 and 200/0 
+
+The second has the largest improvement in purity:
+
+$800[(0.5)(0.5) - (0.5)(300/400)(100/400) - (0.5)(300/400)(100/400)] = 50$
+
+$800[(0.5)(0.5) - (0.75)(200/600)(400/600) - (0.25)(200/200)(0/200)] = 66.66667$
+
+
+       
+## Measures of impurity - Regression Trees
+
+For regression trees, the usual measure of purity is the Residual Sum of Squares (RSS). We select a split such that the RSS is minimized:
+
+$$RSS = \sum^J_{j=1} \sum_{i \in R_{j}} (y_i - \hat{y}_{R_{j}})^2$$
+
+where $J$ is the number of groups, $R_{j}$ are the _regions_ of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ group.
+
+
+
 ## Measuring improvement in purity - Regression Trees
 
 The improvement in purity as displayed in `rpart` is calculated as follows:
 
 $$\Delta I = 1 - (SS_{right} + SS_{left})/SS_{parent}$$
 
-where $SS$ is the respective sum of squares for the parent and children nodes: $\sum (y_{i} - \bar{y})^2$
+where $SS$ is the respective sum of squares for the parent and children nodes: $\sum (y_{i} - \bar{y})^2$.
 
 ## The summary of tree construction
 
@@ -198,7 +248,7 @@ Fortunately, `rpart` does this for us with a default of K = 10.
 The pruning results can be viewed with the `printcp` function.
 
 - `CP`: the complexity parameter $\alpha$ scaled by the number of misclassifications in a model with no splits.  
-- `nsplit`: number of splits (number of nodes is `1 + nsplit`)  
+- `nsplit`: number of splits (number of terminal nodes is `1 + nsplit`)  
 - `rel error`: relative error (calculated with same data used to build tree)
 - `xerror`: cross-validated error rate (calculated with held out data)  
 - `xstd`:  cross-validated standard error
@@ -207,9 +257,59 @@ Use the `plotcp` function to plot `xerror` vs. `cp`.
 
 Let's go to R.
 
+## Making predictions
 
-## How to interpret output from building trees
+Use the `predict` function to run data through your tree and make predictions.
+
+For classification trees there are three types of predictions you can make:  
+
+- `predict(tree, type="prob")`: predicted probabilities (default)    
+- `predict(tree, type="class")`: predicted class using level label  
+- `predict(tree, type="vector")`: predicted class using level number    
+
+For regression trees, calling `predict(tree)` returns predicted means.
+
+## Making predictions with data not used to build tree
+
+To make predictions for data not used to build tree, use the `newdata=` argument. 
+
+The new data must be a data frame and include all variables used in building the tree _even if the tree only includes a subset of the variables_.
+
+Let's go to R.
 
 
-## How to improve prediction accuracy of trees
+## Improving prediction accuracy of trees
 
+Classification and Regression trees tend to suffer from _high variance_. That is they tend to produce different sized trees over multiple fittings.
+
+As we'll demonstrate in the R script, pruning with cross validation does not always result in pruning the same size tree.
+
+Two approaches to reducing this variability is _bagging_ and _random forests_.
+
+
+## Bagging
+
+"Boostrap Aggregation", or _Bagging_, means resampling our data B times, building B trees, and then averaging all the predictions. 
+
+"Resampling" means sampling _with replacement_ from our original data until we have a data set the same size as our original data. 
+
+The key is we do not prune our trees. We grow them deep and use them to make predictions. 
+
+For regression trees, the average is simply the mean of the B predicted means. For classification trees, the prediction is the most commonly occuring prediction (ie, _majority vote_)
+
+
+## Random Forests
+
+
+
+While these two approaches reduce variability and improve performance, they sacrifice the ease of interpretability.
+
+## References
+
+A Handbook of Statistical Analyses using R (Chapter 8)
+
+An Introduction to Statistical Learning with Applications in R (Chapter 8)
+
+The Elements of Statistical Learning (pp. 308 - 310)
+
+An Introduction to Recursive Partitioning Using the RPART Routines
