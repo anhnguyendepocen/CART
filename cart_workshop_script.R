@@ -187,9 +187,11 @@ with(glaucoma, sum(varg >= 0.209))
 
 # It can sometimes help to compare splits with stripcharts:
 op <- par(mfrow=c(1,2))
-stripchart(varg ~ Class, data=glaucoma, main="varg < 0.209", vertical = T, pch=1, method = "jitter")
+stripchart(varg ~ Class, data=glaucoma, main="varg < 0.209", 
+           vertical = T, pch=1, method = "jitter")
 abline(h=0.209, col="red")
-stripchart(vari ~ Class, data=glaucoma, main="vari < 0.0615", vertical = T, pch=1, method = "jitter")
+stripchart(vari ~ Class, data=glaucoma, main="vari < 0.0615", 
+           vertical = T, pch=1, method = "jitter")
 abline(h=0.0615, col="red")
 par(op)
 
@@ -419,7 +421,7 @@ gfit$cptable[,c(1,3:5)]*98
 
 # to select and plot a pruned tree:
 gfit2 <- prune(gfit, cp=0.07)
-plot(gfit2, margin=0.1)
+plot(gfit2, margin=0.2)
 text(gfit2, use.n=TRUE)
 
 
@@ -464,8 +466,8 @@ predict(gfit2, newdata = newd, type="class")
 
 # a workaround in this case
 newd <- glaucoma[sample(nrow(glaucoma),size=2),]
-newd$varg <- c(0.2,0.3)
-newd$mhcg <- c(0.1,0.2)
+newd$varg <- c(0.2, 0.3)
+newd$mhcg <- c(0.1, 0.2)
 predict(gfit2, newdata = newd, type="class")
 
 # Regression trees
@@ -473,6 +475,7 @@ predict(gfit2, newdata = newd, type="class")
 
 # return predicted mean
 predict(ftree2)
+
 
 
 
@@ -493,7 +496,7 @@ gfit$cptable[,"xerror"]
 # get the location of the minimum xerror value
 m <- which.min(gfit$cptable[,"xerror"]) 
 # use that location to identify the number of splits
-gfit$cptable[min,"nsplit"]
+gfit$cptable[m,"nsplit"]
 
 # now build a loop to do this 50 times
 ns <- numeric(50)
@@ -508,57 +511,123 @@ table(ns)
 # that help reduce the variance of decision trees and improve performace is
 # bagging and random forests.
 
+# bagging - bootstrap aggregation
+
+# resample data (with replacement) and grow one tree (B=1)
+bsamp <- sample(nrow(glaucoma), replace = T)
+gl <- glaucoma[bsamp,]
+gl.fitB <- rpart(Class ~ ., data=gl)
+plot(gl.fitB, margin=0.1)
+text(gl.fitB, use.n=TRUE, cex=0.9)
+# make predictions on out-of-bag observations:
+table(predict(gl.fitB, newdata = glaucoma[-bsamp,], type="class"), 
+      glaucoma[-bsamp,]$Class)
+
+# If we repeat the above we almost always get a different tree
+
+# We do this B times (usually 100, or 500) and evaluate the prediction for each 
+# observation. For example, if an observation was predicted glaucoma 10 times
+# and normal 23 times, we would classify as "normal" (majority vote)
 
 
+# We can use the randomForest package for both bagging and random forests.
 
 # install.packages("randomForest")
 library(randomForest)
 
-# classification
-
-# bagging
-# set mtry equal to the number of all predictors
+# set mtry equal to the number of all predictors to perform bagging
 set.seed(123)
-bag.gfit <- randomForest(Class ~ ., data=glaucoma, mtry=62, importance = TRUE)
+bag.gfit <- randomForest(Class ~ ., data=glaucoma, mtry=62)
 bag.gfit
-
-
 
 # notice the confusion matrix is provided. To calculate it by hand:
 table(glaucoma$Class, predict(bag.gfit))
 
-# To really see the effectiveness of bagging
-# train <- c(sample(1:98,98/2), sample(99:nrow(glaucoma), 98/2))
-# 
-# gfit.Train <- rpart(Class ~ ., data=glaucoma, subset=train)
-# printcp(gfit.Train)
-# plotcp(gfit.Train)
-# gfit.TrainP <- prune(gfit.Train, cp=0.21)
-# table(glaucoma$Class[-train], predict(gfit.TrainP, type="class", newdata=glaucoma[-train,]))
-# 
-# bag.gfit <- randomForest(Class ~ ., data=glaucoma, subset=train, mtry=62, importance = TRUE)
-# bag.gfit
-# table(glaucoma$Class[-train], predict(bag.gfit, type="class", newdata=glaucoma[-train,]))
+# OOB estimate of error rate: 14.8%
+# This is the total error rate
+round((13+16)/nrow(glaucoma)*100,1)
 
+# OOB = out-of-bag. This refers to those observations not used in building the 
+# tree. To estimate the test error rate of a bagged tree, predictions are made
+# on those observations NOT used to build the tree.
 
+# Calling plot on the bag.gfit shows the classification error rates and OOB
+# rates as the number of trees increases
+plot(bag.gfit)
+legend("topright", legend = c("OOB","glaucoma","normal"), col = 1:3, lty = 1:3)
+
+# We can use the bagging object, bag.gfit, to make predictions. But instead of 
+# going down one tree, we go down 500. The predicted classification that occurs
+# most often (ie, the majority vote) is the classification.
+
+# Variance importance plot
 varImpPlot(bag.gfit)
 varImpPlot(bag.gfit, n.var = 15)
 
+# see which variables used in trees and how often
+varUsed(bag.gfit)
+data.frame(var=names(glaucoma)[-63], count=varUsed(bag.gfit))
 
 
+# view one of the trees
+getTree(bag.gfit, k=4, labelVar=TRUE)
 
+# to see the "votes" for the observations
+bag.gfit$votes
+
+# to see how many times cases are "out-of-bag" and used for predictions
+bag.gfit$oob.times
+bag.gfit$oob.times/500
+1-mean(bag.gfit$oob.times/500)
+
+# see the Bootstrap Rule of 0.632: on average a bootstrap sample uses 0.632 of 
+# the original observations, thus about 0.368 are used in checking the fit of a
+# bagged tree.
 
 # random forest
 # mtry by default set to sqrt(p) for classification trees
 set.seed(123)
-rf.gfit <- randomForest(Class ~ ., data=glaucoma, importance = TRUE)
+rf.gfit <- randomForest(Class ~ ., data=glaucoma)
 rf.gfit
 
-# Extract a single tree from a forest.
-getTree(bag.gfit, k=4, labelVar=TRUE)
-plot(rf.gfit)
+# notice the confusion matrix is provided. To calculate it by hand:
+table(glaucoma$Class, predict(rf.gfit))
 
+# OOB estimate of error rate: 14.8%
+# This is the total error rate
+round((13+16)/nrow(glaucoma)*100,1)
+
+# Also notice the number of variables tried at each split: 7
+
+# Calling plot on the bag.gfit shows the classification error rates and OOB
+# rates as the number of trees increases
+plot(rf.gfit)
+legend("topright", legend = c("OOB","glaucoma","normal"), col = 1:3, lty = 1:3)
+
+# We can use the random forest object, rf.gfit, to make predictions. But instead
+# of going down one tree, we go down 500. The predicted classification that
+# occurs most often (ie, the majority vote) is the classification.
+
+# variance importance plot
+varImpPlot(rf.gfit)
 varImpPlot(rf.gfit, n.var = 15)
+
+# see which variables used in trees and how often
+varUsed(rf.gfit)
+data.frame(var=names(glaucoma)[-63], count=varUsed(rf.gfit))
+
+
+# Extract a single tree from a forest.
+getTree(rf.gfit, k=1, labelVar=TRUE)
+
+# to see the "votes" for the observations
+rf.gfit$votes
+
+# to see how many times cases are "out-of-bag" and used for predictions
+rf.gfit$oob.times
+rf.gfit$oob.times/500
+1-mean(rf.gfit$oob.times/500)
+
 
 # regression
 
@@ -566,19 +635,32 @@ varImpPlot(rf.gfit, n.var = 15)
 # set mtry equal to the number of all predictors
 set.seed(123)
 bag.ftree <- randomForest(profits ~ assets + marketvalue + sales, data=forbes, 
-                          mtry=3, importance = TRUE)
+                          mtry=3, ntree = 200)
 bag.ftree
 varImpPlot(bag.ftree)
 
 # random forest
 set.seed(123)
 rf.ftree <- randomForest(profits ~ assets + marketvalue + sales, data=forbes, 
-                          importance = TRUE)
+                         ntree = 200)
 rf.ftree
 varImpPlot(rf.ftree)
 
 
-# outakes
+
+# Comparison with Logistic Regression -------------------------------------
+
+glm.gfit <- glm(Class ~ ., data=glaucoma, family="binomial")
+# doesn't work
+
+varImpPlot(rf.gfit, n.var = 15)
+# try again with top 4 variables
+glm.gfit <- glm(Class ~ vari + varg + vars + tmi, data=glaucoma, family="binomial")
+summary(glm.gfit)
+table(ifelse(predict(glm.gfit, type="response")<0.5,"glaucoma","normal"), glaucoma$Class)
+
+
+# OUTAKES -----------------------------------------------------------------
 
 
 
@@ -703,3 +785,56 @@ post(z.auto, file = "")   # display tree on active device
 post(z.auto, file = "pretty.ps", title = " ")
 z.hp <- rpart(Mileage ~ Weight + HP, car.test.frame)
 post(z.hp)
+
+
+
+# To really see the effectiveness of bagging
+# train <- c(sample(1:98,98/2), sample(99:nrow(glaucoma), 98/2))
+# 
+# gfit.Train <- rpart(Class ~ ., data=glaucoma, subset=train)
+# printcp(gfit.Train)
+# plotcp(gfit.Train)
+# gfit.TrainP <- prune(gfit.Train, cp=0.21)
+# table(glaucoma$Class[-train], predict(gfit.TrainP, type="class", newdata=glaucoma[-train,]))
+# 
+# bag.gfit <- randomForest(Class ~ ., data=glaucoma, subset=train, mtry=62, importance = TRUE)
+# bag.gfit
+# table(glaucoma$Class[-train], predict(bag.gfit, type="class", newdata=glaucoma[-train,]))
+
+
+
+
+# Code for tree with scatter plot -----------------------------------------
+
+# tree classification
+set.seed(15)
+X1 <-c(rnorm(20,10,0.5), rnorm(20,8,0.5))
+X2 <- c(rnorm(20,10,0.5), rnorm(20,8,0.5))
+
+# generate classification
+Y <- numeric(length = 40)
+for(i in seq_along(X1)){
+  Y[i] <- if(X1[i] > 4 & X2[i] < 9) rbinom(n = 1, size = 1, prob = 0.75) else 
+    rbinom(n = 1, size = 1, prob = 0.25)
+}
+DF <- data.frame(Y=as.factor(Y),X1,X2)
+summary(DF)
+
+
+tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=10))
+plot(tout2, margin = 0.2)
+text(tout2, use.n = TRUE, cex=0.7)
+tout2
+op <- par(mfrow=c(1,2))
+plot(tout2, margin = 0.1)
+text(tout2, use.n = TRUE)
+
+plot(X2 ~ X1, data=DF, col = Y, pch=19)
+abline(h=8.386349)
+abline(h=10.41387)
+abline(h=7.296315)
+segments(x0 = 9.993876, y0 = 8.386349, x1 = 9.993876, y1 = 10.41387)
+segments(x0 = 10.04942, y0 = 8.386349, x1 = 10.04942, y1 = 10.41387)
+
+par(op)
+

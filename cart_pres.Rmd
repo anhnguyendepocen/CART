@@ -12,6 +12,7 @@ output: beamer_presentation
 - Overview of how trees are constructed
 - How to interpret output from building trees
 - How to improve prediction accuracy of trees
+- How trees compare to other modeling approaches
 
 ## What are Classification and Regression Trees?
 
@@ -94,6 +95,9 @@ The basic process:
 
 In the `rpart` package, a node must have at least 20 observations for it to attempt a split. This is a setting that can be modified.
 
+## A 2-dimensional example of classification tree
+
+![tree with plot](tree_and_plot.png)
 
 ## Measures of impurity - Classification Trees
 
@@ -289,20 +293,57 @@ Two approaches to reducing this variability is _bagging_ and _random forests_.
 
 ## Bagging
 
-"Boostrap Aggregation", or _Bagging_, means resampling our data B times, building B trees, and then averaging all the predictions. 
+"Boostrap aggregation", or _Bagging_, means resampling our data B times, building B trees, and then averaging all the predictions. 
 
 "Resampling" means sampling _with replacement_ from our original data until we have a data set the same size as our original data. 
 
-The key is we do not prune our trees. We grow them deep and use them to make predictions. 
+Two keys:  
+
+1. We do not prune our trees. We grow them deep and use them to make predictions.  
+2. We make predictions using observations that were not used to grow the tree. These are called _out-of-bag_ (OOB) predictions.  
 
 For regression trees, the average is simply the mean of the B predicted means. For classification trees, the prediction is the most commonly occuring prediction (ie, _majority vote_)
 
 
 ## Random Forests
 
+Random forests are similar to bagging, except _we only consider a random sample of $m$ predictors at each split_.
 
+A fresh sample of predictors is taken at each split.
+
+We usually use $m \approx \sqrt{p}$, that is the number of predictors at each step is about equal to the square root of the total number of predictors. When $m = p$, we have bagging.
+
+Sampling predictors at each split prevents strong predictors from dominating the tops of trees and gives moderately-strong predictors a chance to perform. Think of this as allowing some of the "runner-ups" in the summary results to have a turn as a primary split.
+
+
+## Implementation of bagging and random forests
+
+The `randomForest` package allows you to easily implement bagging and random forests. The syntax is very similar to `rpart`.
+
+**Bagging**:   
+`bag.tree <- randomForest(response ~ ., data=DF, mtry=p)`
+
+**Random forest**:   
+`rf.tree <- randomForest(response ~ .,data=DF)`
+
+The `mtry=` argument specifies how many predictors to sample at each split. Recall $m = p$ is bagging. The default for classification is $\sqrt{p}$ while the default for regression is $p/3$.
+
+
+## The drawback of bagging and random forests
 
 While these two approaches reduce variability and improve performance, they sacrifice the ease of interpretability.
+
+Instead of one tree we can easily interpret, we now have many trees (usually 500) that we are using as an _ensemble_.
+
+One way around this is to create a plot of _variable importance_. 
+
+This plot shows the most important predictors based on the total _decrease in node impurity_ that results from splits over the variable.
+
+## Example of variable importance plot
+
+![variable importance plot](varImport.png)
+
+Let's go to R.
 
 ## References
 
