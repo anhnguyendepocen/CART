@@ -12,7 +12,8 @@ output: beamer_presentation
 - Overview of how trees are constructed
 - How to interpret output from building trees
 - How to improve prediction accuracy of trees
-- How trees compare to other modeling approaches
+- trees versus linear models
+
 
 ## What are Classification and Regression Trees?
 
@@ -26,9 +27,13 @@ They are non-parametric in nature in that they don't make distributional assumpt
 
 ## Example of Classification Tree
 
+Using laser scanner data to predict whether a patient's eye suffers from glaucoma or not.
+
 ![classification tree example](ctree_ex.png)
 
 ## Example of Regression Tree
+
+Explaining profit of a company based on assets, sales and market value.
 
 ![Regression tree example](rtree_ex.png)
 
@@ -97,6 +102,8 @@ In the `rpart` package, a node must have at least 20 observations for it to atte
 
 ## A 2-dimensional example of classification tree
 
+Predict black (0) or red (1) classification based on X1 and X2 values.
+
 ![tree with plot](tree_and_plot.png)
 
 ## Measures of impurity - Classification Trees
@@ -105,7 +112,7 @@ For classification trees, the usual measure of impurity is the _Gini index_. We 
 
 $$ G = \sum^K_{k=1}\hat{p}_{mk}(1-\hat{p}_{mk})$$
 
-where $K$ is the number of classes and $\hat{p}_{mk}$ is the proportion of observations in the _m_th group that are from the _k_th class.
+where $K$ is the number of classes and $\hat{p}_{mk}$ is the proportion of observations in the _m_th region that are from the _k_th class.
 
 ## Why use the Gini index?
 
@@ -116,10 +123,10 @@ pm2 <- 1 - pm1
 class <- 1 - pmax(pm1,pm2)
 gini <- pm1*(1-pm1) + pm2*(1-pm2)
 plot(pm1, class, type="l", xlab="Proportion belonging to class 1", ylab="impurity", 
-     ylim=c(0,0.6), main=("Gini vs. Misclassification\nfor two-class response"))
-lines(pm1, gini, type="l", col="red")
+     ylim=c(0,0.6), main=("Gini vs. Misclassification\nfor two-class response"), col="blue")
+lines(pm1, gini, type="l", col="orange")
 legend("topright", legend = c("Gini Index", "Misclassification Error"), 
-       col = c("red","black"),lty = 1)
+       col = c("orange","blue"),lty = 1)
 ```
 
 ## Gini index vs misclassification rate example
@@ -151,12 +158,12 @@ The actual values of improvement are not that important but their relative size 
 
 ## Measuring improvement in purity - example cont'd
 
-Let's say we have a two-class response with 400 observations in each class (400/400).
+Let's say we have a two-class response with 400 observations in each class (400, 400).
 
 Suppose when growing a tree we have two splits to consider:
 
-1. nodes with 300/100 and 100/300    
-2. nodes with 200/400 and 200/0 
+1. nodes with (300, 100) and (100, 300)    
+2. nodes with (200, 400) and (200, 0)  
 
 The second has the largest improvement in purity:
 
@@ -172,7 +179,7 @@ For regression trees, the usual measure of purity is the Residual Sum of Squares
 
 $$RSS = \sum^J_{j=1} \sum_{i \in R_{j}} (y_i - \hat{y}_{R_{j}})^2$$
 
-where $J$ is the number of groups, $R_{j}$ are the _regions_ of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ group.
+where $J$ is the number of regions, $R_{j}$ are the regions of predictors, and $\hat{y}_{R_{j}}$ is the mean repsonse for the _Jth_ region.
 
 
 
@@ -188,7 +195,7 @@ where $SS$ is the respective sum of squares for the parent and children nodes: $
 
 A summary of the tree construction process can be viewed with the `summary` function. Beware, it produces a lot of output!
 
-It displays the _primary_ split for each node as well as the four "runner-up" splits (the splits that came closest to the chosen split in terms of increasing purity).
+It displays the _primary_ split for each node as well as up to four "runner-up" splits (the splits that came closest to the chosen split in terms of increasing purity).
 
 It also displays five _surrogate_ splits. These are splits for observations that are missing data for the primary split.
 
@@ -222,7 +229,7 @@ The "significance" in pruning is achieved by minimizing the following cost funct
 
 $$R_{\alpha}(T) = R(T) + \alpha|T| $$
 
-where $\alpha$ is the complexity parameter ranging from 0 to $\infty$, $R(T)$ is the _risk_ of the tree (ie, the proportion misclassified), and $|T|$ is the number of terminal nodes (leaves) in a tree. Thus $R_{\alpha}(T)$ is the risk of a tree for a given $\alpha$.
+where $\alpha$ is the _complexity parameter_ ranging from 0 to $\infty$, $R(T)$ is the _risk_ of the tree (ie, the proportion misclassified), and $|T|$ is the number of terminal nodes (leaves) in a tree. Thus $R_{\alpha}(T)$ is the risk of a tree for a given $\alpha$.
 
 We build a large tree, minimize $R_{\alpha}(T)$ over several values of $\alpha$ to obtain a sequence of pruned trees, and then select the pruned tree with the smallest risk.
 
@@ -249,15 +256,17 @@ Fortunately, `rpart` does this for us with a default of K = 10.
 
 ## Pruning in `rpart`
 
-The pruning results can be viewed with the `printcp` function.
+The cross-validation results can be viewed with the `printcp` function.
 
 - `CP`: the complexity parameter $\alpha$ scaled by the number of misclassifications in a model with no splits.  
-- `nsplit`: number of splits (number of terminal nodes is `1 + nsplit`)  
-- `rel error`: relative error (calculated with same data used to build tree)
-- `xerror`: cross-validated error rate (calculated with held out data)  
+- `nsplit`: number of splits in tree
+- `rel error`: relative error (on data used to build tree)
+- `xerror`: cross-validated error rate (on held out data)  
 - `xstd`:  cross-validated standard error
 
-Use the `plotcp` function to plot `xerror` vs. `cp`.
+Use the `plotcp` function to plot `xerror` vs. `cp`. 
+
+To prune a tree, use the `prune` function on the rpart object with a `cp` argument specifying the complexity parameter.
 
 Let's go to R.
 
@@ -324,7 +333,7 @@ The `randomForest` package allows you to easily implement bagging and random for
 `bag.tree <- randomForest(response ~ ., data=DF, mtry=p)`
 
 **Random forest**:   
-`rf.tree <- randomForest(response ~ .,data=DF)`
+`rf.tree <- randomForest(response ~ ., data=DF)`
 
 The `mtry=` argument specifies how many predictors to sample at each split. Recall $m = p$ is bagging. The default for classification is $\sqrt{p}$ while the default for regression is $p/3$.
 
@@ -345,12 +354,67 @@ This plot shows the most important predictors based on the total _decrease in no
 
 Let's go to R.
 
+## Trees versus linear models
+
+When it comes to classification problems, if the true decision boundary is linear, then a linear model will very likely outperform a tree-based model.
+
+On the other hand, if true decision boundary is non-linear, then a tree-model may outperform a linear model. 
+
+Another consideration is interpretability. A decision tree is easier to read and understand than linear model output. Thus we may be willing to sacrifice small gains in performance for an easier to understand model.
+
+## Linear decision boundary - 2D classification
+
+A linear model will outperform a tree model in this situation.
+
+```{r, echo=FALSE}
+x1 <- runif(200,1,10)
+x2 <- runif(200,1,10)
+df <- data.frame(x1,x2)
+df <- df[order(df$x1),]
+# boundary
+df$b <- 2 + 0.8*seq(1,10,length=200)
+fg <- function(x) if(x) rbinom(1,1,0.95) else rbinom(1,1,0.05)
+df$g <- sapply(df$x2 > df$b,fg)
+plot(x2 ~ x1, data=df, col=(g+3),pch=19)
+abline(a=2,b=0.8)
+```
+
+
+## Non-linear decision boundary - 2D classification
+
+A tree model will likely outperform a linear model in this situation.
+
+```{r, echo=FALSE}
+# true decision boundary is non-linear
+x1 <- runif(200,1,10)
+x2 <- runif(200,1,10)
+df <- data.frame(x1,x2)
+# boundary
+fg <- function(x) if(x) rbinom(1,1,0.95) else rbinom(1,1,0.05)
+df$g <- sapply(df$x1 < 3 | df$x2 > 7,fg)
+plot(x2 ~ x1, data=df, col=(g+3),pch=19)
+abline(v=3,h=7)
+
+```
+
+
 ## References
 
-A Handbook of Statistical Analyses using R (Chapter 8)
+Everitt, B. and Hothorn, T. (2006) _A Handbook of Statistical Analyses using R_. Chapman & Hall/CRC, Boca Raton. (Chapter 8)
 
-An Introduction to Statistical Learning with Applications in R (Chapter 8)
+Hastie, T. et al. (2009) _The Elements of Statistical Learning_. Springer, New York. (pages 308 - 310)
 
-The Elements of Statistical Learning (pp. 308 - 310)
+James, G. et al. (2013) _An Introduction to Statistical Learning_. Springer, New York. (Chapter 8)
 
-An Introduction to Recursive Partitioning Using the RPART Routines
+Therneau, T. and Atkinson, E. (2014) _An Introduction to Recursive Partitioning Using the RPART Routines_. Included  `rpart` package
+
+## StatLab
+
+Thanks for coming today!
+
+For help and advice with your data analysis, contact the StatLab to set up an appointment: statlab@virginia.edu
+
+Sign up for more workshops or see past workshops:
+http://data.library.virginia.edu/statlab/
+
+Register for the Research Data Services newsletter to stay up-to-date on StatLab events and resources: http://data.library.virginia.edu/newsletters/
