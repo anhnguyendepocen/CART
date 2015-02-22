@@ -12,7 +12,7 @@ output: beamer_presentation
 - Overview of how trees are constructed
 - How to interpret output from building trees
 - How to improve prediction accuracy of trees
-- trees versus linear models
+- Trees versus linear models
 
 
 ## What are Classification and Regression Trees?
@@ -256,7 +256,7 @@ Fortunately, `rpart` does this for us with a default of K = 10.
 
 ## Pruning in `rpart`
 
-The cross-validation results can be viewed with the `printcp` function.
+The cross-validation results can be viewed with the `printcp` function. It prints 4 columns of numbers:
 
 - `CP`: the complexity parameter $\alpha$ scaled by the number of misclassifications in a model with no splits.  
 - `nsplit`: number of splits in tree
@@ -293,7 +293,7 @@ Let's go to R.
 
 ## Improving prediction accuracy of trees
 
-Classification and Regression trees tend to suffer from _high variance_. That is they tend to produce different sized trees over multiple fittings.
+Classification and Regression trees tend to suffer from _high variance_. That is they tend to produce different sized trees using different samples from the same population.
 
 As we'll demonstrate in the R script, pruning with cross validation does not always result in pruning the same size tree.
 

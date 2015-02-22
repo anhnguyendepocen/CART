@@ -20,16 +20,11 @@ glaucoma <- read.csv("Glaucoma.csv")
 # other 62 explanatory variables are derived from laser scanning images of the
 # optic nerve head.
 
-# Source: 
-# Torsten Hothorn and Berthold Lausen (2003), Double-Bagging: Combining
-# classifiers by bootstrap aggregation. Pattern Recognition, 36(6), 1303–1309.
-
-# Torsten Hothorn and Berthold Lausen (2003), Bagging tree classifiers for laser
-# scanning images: a data- and simulation-based strategy. Artificial 
-# Intelligence in Medicine, 27(1), 65–79.
-
 # Our goal is to construct a classification tree which is able to decide if an
 # eye is normal or glaucoma based on laser image data.
+
+# Source: Torsten Hothorn and Brian Everitt (2006), A Handbook of Statistical
+# Analyses using R.
 
 
 # fit classification tree; "~ ." means use all predictors in data frame
@@ -41,13 +36,14 @@ plot(gfit)
 # add text to the tree
 text(gfit)
 
-# By default the vertical spacing between nodes is proportional to the error in
-# the fit.
+# Usually need to play with plot arguments to get the tree to look right!
 
-# Usually need to play with plot arguments to get the tree to look right.
-
+# add space around tree
 plot(gfit, margin=0.05)
 text(gfit)
+
+# By default the vertical spacing between nodes is proportional to the error in
+# the fit. uniform=TRUE changes that. branch=0 will make V shaped branches.
 
 plot(gfit, branch=0, uniform=TRUE, margin=0.05)
 text(gfit)
@@ -98,8 +94,8 @@ par(op)
 
 # Notice that even though all predictors are continuous numeric measurements, a 
 # simple cutpoint, or splitting rule, has been selected for predicting 
-# classification. There is indication of the relationship between predictors and
-# Class.
+# classification. There is no indication of the relationship between predictors
+# and Class.
 
 # While the tree itself provides a decision making process for predicting 
 # glaucoma, there is no summary displayed of how well it performs overall.
@@ -116,6 +112,9 @@ forbes <- read.csv("Forbes2000.csv")
 
 # Our goal is to construct a regression tree that shows simple relationships
 # between profit and sales, assets and market value.
+
+# Source: Torsten Hothorn and Brian Everitt (2006), A Handbook of Statistical
+# Analyses using R.
 
 ftree <- rpart(profits ~ assets + marketvalue + sales, data=forbes)
 plot(ftree, margin=0.05)
@@ -158,7 +157,7 @@ summary(gfit)
 # expected loss=0.5
 98 / (98 + 98)
 
-# P(node) =1 because all observations are in the root node.
+# P(node) = 1 because all observations are in the root node.
 196 / 196
 
 # probabilities: 0.500 0.500 
@@ -173,6 +172,8 @@ with(glaucoma, sum(varg >= 0.209))
 # improve=44.01404
 # This is the reduction in impurity.
 # It is tedious to calculate "by hand":
+
+#  n[p(A)I(A) - p(A_L)I(A_L) -  p(A_R)I(A_R)]
 
 196 * (
   (1 * (2 * 98/196 * 98/196)) -      # (2 * 98/196 * 98/196) is the gini index for root node
@@ -202,10 +203,10 @@ par(op)
 # class counts:    70     6
 # probabilities: 0.921 0.079 
 
-# expected loss=0.07894737
+# expected loss = 0.07894737
 6/(70 + 6)
 
-# P(node) =0.3877551
+# P(node) = 0.3877551
 76/196
 
 # probabilities: 0.921 0.079 
@@ -231,8 +232,8 @@ par(op)
 120 / 196
 
 # probabilities: 0.233 0.767
-28 / 196
-92 / 196
+28 / 120
+92 / 120
 
 # compare selected split to 1st runner-up:
 # mhcg < 0.1695  improve=8.738643,
@@ -295,7 +296,7 @@ round(sum(diag(tab))/sum(tab),3)
 round((183 - 120)/(196 - 120),3)
 
 # Variable importance
-# Form the Introduction to Rpart:
+# From the Introduction to Rpart:
 
 # "A variable may appear in the tree many times, either as a primary or a
 # surrogate variable. An overall measure of variable importance is the sum of
@@ -304,7 +305,12 @@ round((183 - 120)/(196 - 120),3)
 # a surrogate. In the printout these are scaled to sum to 100 and the rounded
 # values are shown, omitting any variable whose proportion is less than 1%."
 
-# we see that varg, vars, varn, vari, rnf and vbri were the 5 most important
+
+# Variable importance
+# varg vars varn vari  rnf vbri mhcg mhcn  eas mhcs phcn abrs mhct phcg  hic vbss  tms   as  eag 
+#   18   14   14   13   12   10    3    2    1    1    1    1    1    1    1    1    1    1    1 
+
+# we see that varg, vars, varn, vari, rnf and vbri were the 6 most important
 # variables.
 
 
@@ -333,11 +339,11 @@ with(forbes, sum((profits - mean(profits))^2)/nrow(forbes))
 # improve=0.23748450
 # This is the reduction in impurity
 # It is tedious to calculate "by hand":
-SS1 <- with(forbes, sum((profits - mean(profits))^2))
+SS1 <- with(forbes, sum((profits - mean(profits))^2)) # parent
 SS2 <- with(forbes[forbes$marketvalue < 89.335,], 
-            sum((profits - mean(profits))^2))
+            sum((profits - mean(profits))^2))         # left child 
 SS3 <- with(forbes[forbes$marketvalue >= 89.335,], 
-            sum((profits - mean(profits))^2))
+            sum((profits - mean(profits))^2))         # right child
 1 - (SS2 + SS3)/SS1
 
 # Note this is also the R-squared if we regress profits on the grouping
@@ -352,11 +358,14 @@ summary(lm(profits ~ (marketvalue < 89.335), data=forbes))
 # compare primary splits with stripcharts:
 op <- par(mfrow=c(1,2))
 stripchart(profits ~ (marketvalue < 89.335), data=forbes, main="marketvalue < 89.335", 
-           vertical = T, pch=1, method = "jitter")
-# abline(h=89.335, col="red")
+           vertical = T, pch=1, method = "jitter", col="grey80")
+m <- aggregate(profits ~ (marketvalue < 89.335), data=forbes, mean)[,2]
+points(x = c(1,2),y = m, col="red", pch=19)
+
 stripchart(profits ~ (sales < 112.85), data=forbes, main="sales < 112.85",
-           vertical = T, pch=1, method = "jitter")
-# abline(h=112.85, col="red")
+           vertical = T, pch=1, method = "jitter", col="grey80")
+m <- aggregate(profits ~ (sales < 112.85), data=forbes, mean)[,2]
+points(x = c(1,2),y = m, col="red", pch=19)
 par(op)
 
 
@@ -366,8 +375,8 @@ par(op)
 # Primary splits:
 #   marketvalue < 32.715  to the left,  improve=0.07106272, (0 missing)
 
-# Again notice improve=0.07106272 is simply the R-squared when regressing the 
-# grouping indicator (marketvalue < 32.715) on profits for those data with
+# Again notice improve=0.07106272 is simply the R-squared when regressing 
+# profits on the grouping indicator (marketvalue < 32.715) for those data with 
 # marketvalue < 89.335.
 summary(lm(profits ~ (marketvalue < 32.715), data=forbes, subset= marketvalue < 89.335))
 
@@ -412,7 +421,7 @@ plotcp(gfit)
 # Rule of thumb: select the smallest tree within one standard error of the
 # smallest CV error.
 
-# cal also access cptable directly from rpart object
+# can also access cptable directly from rpart object
 gfit$cptable
 
 # Recall that the cptable is scaled by the number of misclassifications in a
@@ -420,7 +429,7 @@ gfit$cptable
 gfit$cptable[,c(1,3:5)]*98
 
 # to select and plot a pruned tree:
-gfit2 <- prune(gfit, cp=0.07)
+gfit2 <- prune(gfit, cp=0.22)
 plot(gfit2, margin=0.2)
 text(gfit2, use.n=TRUE)
 
