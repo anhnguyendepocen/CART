@@ -12,7 +12,7 @@ library(rpart)
 
 # Classification Tree
 
-glaucoma <- read.csv("Glaucoma.csv")
+glaucoma <- read.csv("http://people.virginia.edu/~jcf2d/workshops/cart/Glaucoma.csv")
 # About Glaucoma.csv
 
 # Contains 98 normal and 98 glaucomatous subjects matched by age and sex. The 
@@ -42,12 +42,14 @@ text(gfit)
 plot(gfit, margin=0.05)
 text(gfit)
 
-# By default the vertical spacing between nodes is proportional to the error in
-# the fit. uniform=TRUE changes that. branch=0 will make V shaped branches.
+# By default the vertical spacing between nodes is proportional to the
+# "importance" of the predictor. uniform=TRUE changes that. branch=0 will make V
+# shaped branches.
 
 plot(gfit, branch=0, uniform=TRUE, margin=0.05)
 text(gfit)
 
+# playing around...
 plot(gfit, branch=0.5, margin=0.05, compress=TRUE)
 text(gfit)
 
@@ -94,16 +96,14 @@ par(op)
 
 # Notice that even though all predictors are continuous numeric measurements, a 
 # simple cutpoint, or splitting rule, has been selected for predicting 
-# classification. There is no indication of the relationship between predictors
-# and Class.
-
-# While the tree itself provides a decision making process for predicting 
-# glaucoma, there is no summary displayed of how well it performs overall.
+# classification. There is no indication of the relationship between predictors 
+# and Class. For example, we don't estimate the changing likelihood of glaucoma
+# as varg increases.
 
 
 # Regression Tree
 
-forbes <- read.csv("Forbes2000.csv")
+forbes <- read.csv("http://people.virginia.edu/~jcf2d/workshops/cart/Forbes2000.csv")
 # About Forbes.csv
 
 # The Forbes 2000 list is a ranking of the world's biggest companies in 2004, 
@@ -119,10 +119,6 @@ forbes <- read.csv("Forbes2000.csv")
 ftree <- rpart(profits ~ assets + marketvalue + sales, data=forbes)
 plot(ftree, margin=0.05)
 text(ftree)
-
-# with uniform branches and n
-plot(ftree, uniform=TRUE, margin=0.05)
-text(ftree, use.n=TRUE)
 
 # The leaves (terminal nodes) display the predicted mean profit. 
 
@@ -141,6 +137,7 @@ ftree
 # name.
 
 summary(gfit)
+# summary(gfit, file="summary.txt")
 
 # Let's look at node 1, the root node
 
@@ -166,8 +163,8 @@ summary(gfit)
 
 # left son=2 (76 obs) right son=3 (120 obs)
 # 76 obs sent to node 2 and 120 obs sent to node 3 based on split varg < 0.209
-with(glaucoma, sum(varg < 0.209))
-with(glaucoma, sum(varg >= 0.209))
+sum(glaucoma$varg < 0.209)
+sum(glaucoma$varg >= 0.209)
 
 # improve=44.01404
 # This is the reduction in impurity.
@@ -655,5 +652,70 @@ rf.ftree <- randomForest(profits ~ assets + marketvalue + sales, data=forbes,
 rf.ftree
 varImpPlot(rf.ftree)
 
+
+
+# trees vs. linear models -------------------------------------------------
+
+# generate data
+set.seed(123)
+x1 <- runif(400,1,10)
+x2 <- runif(400,1,10)
+df <- data.frame(x1,x2)
+df <- df[order(df$x1),]
+# create grouping indicator based on boundary
+df$b <- 0.5 + 1.2*seq(1,10,length=400)
+fg <- function(x) if(x) rbinom(1,1,0.95) else rbinom(1,1,0.05)
+df$g <- sapply(df$x2 > df$b,fg)
+plot(x2 ~ x1, data=df, col=(g+3),pch=19)
+abline(a=0.5,b=1.2)
+
+# let's create a training set to build model;
+# we'll evaluate the model with the data not used to build it;
+train <- sample(400,200)
+
+# linear model with confusion matrix;
+glm1 <- glm(g ~ x1 + x2, data=df, subset=train, family="binomial")
+# make predictions on held out data
+p <- ifelse(predict(glm1, newdata = df[-train,], type="response")>0.5,1,0)
+(tab <- table(df$g[-train],p))
+sum(diag(tab))/sum(tab)
+
+# tree model with confusion matrix
+tree1 <- rpart(g ~ x1 + x2, data=df, subset=train, method = "class")
+p <- predict(tree1, newdata = df[-train,], type="class")
+(tab <- table(df$g[-train],p))
+sum(diag(tab))/sum(tab)
+
+# add fitted boundary
+cs <- coef(glm1)
+abline(a = -cs[1]/cs[3], b= -cs[2]/cs[3], lty=3, lwd=3)
+
+
+# true decision boundary is non-linear
+set.seed(123)
+x1 <- runif(400,1,10)
+x2 <- runif(400,1,10)
+df <- data.frame(x1,x2)
+# boundary
+fg <- function(x) if(x) rbinom(1,1,0.95) else rbinom(1,1,0.05)
+df$g <- sapply(df$x1 < 3 | df$x2 > 7,fg)
+plot(x2 ~ x1, data=df, col=(g+3),pch=19)
+abline(v=3,h=7)
+
+# linear model with confusion matrix
+glm2 <- glm(g ~ x1 + x2, data=df, subset=train, family="binomial")
+p <- ifelse(predict(glm2, newdata = df[-train,], type="response")>0.5,1,0)
+(tab <- table(df$g[-train],p))
+sum(diag(tab))/sum(tab)
+
+# tree model with confusion matrix
+tree2 <- rpart(g ~ x1 + x2, data=df, subset=train, method = "class")
+p <- predict(tree2, newdata = df[-train,],type="class")
+(tab <- table(df$g[-train],p))
+sum(diag(tab))/sum(tab)
+tree2
+
+# add fitted boundaries
+abline(h=6.998292, v=3.029319, lty=3, lwd=3)
 
 # END OF WORKSHOP SCRIPT

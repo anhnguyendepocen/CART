@@ -94,7 +94,7 @@ Let's go to R!
 
 The basic process:
 
-1. Examine all possible splits for all possible covariates and choose the split which leads to 2 groups that are "purer" than the current group. That is, take the split that produces the largest improvement in _purity_.
+1. Examine all possible splits for all possible covariates and choose the split which leads to 2 groups that are "purer" than the current group. That is, take the split that produces the largest improvement in _purity_. 
 2. Repeat step 1 for the 2 new groups. Hence the name _recursive partitioning_.
 3. Repeat steps 1 and 2 for all subsequent groups until some stopping criterion is fulfilled. 
 
@@ -102,7 +102,7 @@ In the `rpart` package, a node must have at least 20 observations for it to atte
 
 ## A 2-dimensional example of classification tree
 
-Predict black (0) or red (1) classification based on X1 and X2 values.
+Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
 
 ![tree with plot](tree_and_plot.png)
 
@@ -367,16 +367,18 @@ Another consideration is interpretability. A decision tree is easier to read and
 A linear model will outperform a tree model in this situation.
 
 ```{r, echo=FALSE}
+# true decision boundary is linear
+set.seed(123)
 x1 <- runif(200,1,10)
 x2 <- runif(200,1,10)
 df <- data.frame(x1,x2)
 df <- df[order(df$x1),]
 # boundary
-df$b <- 2 + 0.8*seq(1,10,length=200)
+df$b <- 0.5 + 1.2*seq(1,10,length=200)
 fg <- function(x) if(x) rbinom(1,1,0.95) else rbinom(1,1,0.05)
 df$g <- sapply(df$x2 > df$b,fg)
 plot(x2 ~ x1, data=df, col=(g+3),pch=19)
-abline(a=2,b=0.8)
+abline(a=0.5,b=1.2)
 ```
 
 
@@ -386,6 +388,7 @@ A tree model will likely outperform a linear model in this situation.
 
 ```{r, echo=FALSE}
 # true decision boundary is non-linear
+set.seed(123)
 x1 <- runif(200,1,10)
 x2 <- runif(200,1,10)
 df <- data.frame(x1,x2)
@@ -406,7 +409,7 @@ Hastie, T. et al. (2009) _The Elements of Statistical Learning_. Springer, New Y
 
 James, G. et al. (2013) _An Introduction to Statistical Learning_. Springer, New York. (Chapter 8)
 
-Therneau, T. and Atkinson, E. (2014) _An Introduction to Recursive Partitioning Using the RPART Routines_. Included  `rpart` package
+Therneau, T. and Atkinson, E. (2014) _An Introduction to Recursive Partitioning Using the RPART Routines_. Included  with `rpart` package.
 
 ## StatLab
 
