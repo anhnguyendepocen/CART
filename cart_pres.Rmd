@@ -110,7 +110,71 @@ In the `rpart` package, a node must have at least 20 observations for it to atte
 
 Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
 
-![tree with plot](tree_and_plot.png)
+
+```{r cache=TRUE, echo=FALSE}
+library(rpart)
+set.seed(15)
+X1 <-c(rnorm(20,10,0.5), rnorm(20,8,0.5))
+X2 <- c(rnorm(20,10,0.5), rnorm(20,8,0.5))
+# generate classification
+Y <- numeric(length = 40)
+for(i in seq_along(X1)){
+  Y[i] <- if(X1[i] > 4 & X2[i] < 9) rbinom(n = 1, size = 1, prob = 0.75) else 
+    rbinom(n = 1, size = 1, prob = 0.25)
+}
+DF <- data.frame(Y=as.factor(Y),X1,X2)
+tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=25))
+op <- par(mfrow=c(1,2))
+plot(tout2, margin = 0.1)
+text(tout2, use.n = TRUE)
+
+plot(X2 ~ X1, data=DF, col = Y, pch=19)
+abline(h=8.386349)
+par(op)
+
+```
+
+## A 2-dimensional example of classification tree
+
+Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
+
+
+```{r cache=TRUE, echo=FALSE}
+
+tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=11))
+op <- par(mfrow=c(1,2))
+plot(tout2, margin = 0.1)
+text(tout2, use.n = TRUE)
+
+plot(X2 ~ X1, data=DF, col = Y, pch=19)
+abline(h=8.386349)
+abline(h=10.41387)
+par(op)
+
+```
+
+## A 2-dimensional example of classification tree
+
+Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
+
+
+```{r cache=TRUE, echo=FALSE}
+
+tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=9))
+op <- par(mfrow=c(1,2))
+plot(tout2, margin = 0.1)
+text(tout2, use.n = TRUE)
+
+plot(X2 ~ X1, data=DF, col = Y, pch=19)
+abline(h=8.386349)
+abline(h=10.41387)
+abline(h=7.296315)
+segments(x0 = 9.993876, y0 = 8.386349, x1 = 9.993876, y1 = 10.41387)
+segments(x0 = 10.04942, y0 = 8.386349, x1 = 10.04942, y1 = 10.41387)
+par(op)
+
+```
+
 
 ## Measures of impurity - Classification Trees
 
@@ -171,7 +235,7 @@ where...
 
 - $p(A)$ is the proportion of observations in the current node
 - $p(A_{L})$ and $p(A_{R})$ are the proportion of observations sent to the left and right child nodes, respectively
-- $I(A)$, $I(A_{L})$ and $I(A_{L})$ are the measures of impurity in each node (ie, the Gini Index)
+- $I(A)$, $I(A_{L})$ and $I(A_{R})$ are the measures of impurity in each node (ie, the Gini Index)
 - $n$ is the total number of observations.     
 
 
@@ -248,25 +312,25 @@ Therefore pruning a tree can pose a challenge.
 
 ## How pruning works
 
-Pruning is basically variable selection. We build a large tree and then _prune_ branches that don't significantly improve performance.   
+Pruning is basically variable selection. We build a large tree and then recursively snip off the least important splits.  
 \ 
 
-The "significance" in pruning is achieved by minimizing the following cost function:
+Importance is captured by the cost-complexity measure:
 
-$$R_{\alpha}(T) = R(T) + \alpha|T| $$
+$$R_{\alpha}(T') = R(T') + \alpha|T'| $$
 
-where $\alpha$ is the _complexity parameter_ ranging from 0 to $\infty$, $R(T)$ is the _risk_ of the tree (ie, the proportion misclassified), and $|T|$ is the number of terminal nodes (leaves) in a tree. Thus $R_{\alpha}(T)$ is the risk of a tree for a given $\alpha$.  
+where $\alpha$ is the _complexity parameter_ ranging from 0 to $\infty$, $R(T')$ is the _risk_ of the subtree $T'$, and $|T'|$ is the number of terminal nodes (leaves) in the subtree. Thus $R_{\alpha}(T')$ is the risk of a subtree for a given $\alpha$.  
 \ 
 
-We build a large tree, minimize $R_{\alpha}(T)$ over several values of $\alpha$ to obtain a sequence of pruned trees, and then select the pruned tree with the smallest risk.
+For any specified $\alpha$, cost-complexity pruning determines the subtree $T'$ that minimizes $R_{\alpha}(T')$ over all subtrees of $T$, the original large tree. 
 
 ## The complexity parameter, $\alpha$
 
 $\alpha$ measures the _cost_ of adding another variable to the tree. In other words, there's a penalty to pay for adding more branches to a tree. $\alpha$ is the price you pay to add more branches.
 
-$$R_{\alpha}(T) = R(T) + \alpha|T| $$
+$$R_{\alpha}(T') = R(T') + \alpha|T'| $$
 
-If $\alpha$ is small, the penalty is small and the tree will be large. The minimal value is achieved by having lower rates of misclassifications.  
+If $\alpha$ is small, the penalty is small and the tree will be large. The minimal value is achieved by having more terminal nodes (leaves).  
 \ 
 
 If $\alpha$ is large, the penalty is large and the tree will be small. The minimal value is achieved by having fewer terminal nodes (leaves). 
@@ -282,7 +346,7 @@ We use K-fold cross validation to help us find the optimal $\alpha$. That is, we
 
 Fortunately, `rpart` does this for us with a default of K = 10.
 
-## Pruning in `rpart`
+## Pruning results in `rpart`
 
 The cross-validation results can be viewed with the `printcp` function. It prints 5 columns of numbers:
 
@@ -290,11 +354,32 @@ The cross-validation results can be viewed with the `printcp` function. It print
 - `nsplit`: number of splits in tree
 - `rel error`: relative error (on data used to build tree)
 - `xerror`: cross-validated error rate (on held out data)  
-- `xstd`:  cross-validated standard error
+- `xstd`:  cross-validated standard error  
 
-Use the `plotcp` function to plot `xerror` vs. `cp`. 
+## `printcp` example
 
-To prune a tree, use the `prune` function on the rpart object with a `cp` argument specifying the complexity parameter.
+![printcp example](printcp.jpg)
+
+## `plotcp` example
+
+Use the `plotcp` function to plot `xerror` vs. `CP`. Example: `plotcp(gfit)`   
+\ 
+
+![plotcp example](plotcp.jpeg)
+
+## Selecting a CP and pruning a tree 
+
+Recommendation: Pick the CP within one standard error of the minimum.  
+\ 
+
+To prune a tree, use the `prune` function on the rpart object with a `cp` argument specifying the complexity parameter.  
+\ 
+
+For example, to prune a tree using complexity parameter of 0.031:  
+\ 
+
+`gfit.prune <- prune(gfit, cp=0.031)`  
+\ 
 
 Let's go to R.
 
@@ -343,7 +428,7 @@ Classification and Regression trees tend to suffer from _high variance_. That is
 As we'll demonstrate in the R script, pruning with cross validation does not always result in pruning the same size tree.  
 \ 
 
-Two approaches to reducing this variability is _bagging_ and _random forests_.  
+Two approaches to reducing this variability are _bagging_ and _random forests_.  
 
 
 ## Bagging
@@ -415,7 +500,7 @@ Let's go to R.
 
 ## Trees versus linear models
 
-When it comes to classification problems, if the true decision boundary is linear, then a linear model will very likely outperform a tree-based model.  
+When it comes to classification problems, if the true decision boundary is linear, then a linear model will likely outperform a tree-based model.  
 \ 
 
 On the other hand, if true decision boundary is non-linear, then a tree-model may outperform a linear model.  
@@ -425,7 +510,7 @@ Another consideration is interpretability. A decision tree is easier to read and
 
 ## Linear decision boundary - 2D classification
 
-A linear model will outperform a tree model in this situation.
+A linear model will likely outperform a tree model in this situation.
 
 ```{r, echo=FALSE}
 # true decision boundary is linear
@@ -462,15 +547,33 @@ abline(v=3,h=7)
 ```
 
 
+## Strengths of trees
+
+- Handles missing values without omitting complete observations
+- Can capture non-additive behavior; automatically includes interactions
+- Handles both regression and classification
+- Results are easy to understand
+
+## Weaknesses of trees
+
+- Tree may not be optimal
+- Larger trees can make poor intuitive sense
+- Continuous predictor variables are dichotomized
+- May obscure relationships that are obvious from linear modeling output
+
+
 ## References
 
-Everitt, B. and Hothorn, T. (2006) _A Handbook of Statistical Analyses using R_. Chapman & Hall/CRC, Boca Raton. (Chapter 8)  
+Everitt, B. and Hothorn, T. (2006) _A Handbook of Statistical Analyses using R_. Chapman & Hall/CRC, Boca Raton. (Ch. 8)  
 \ 
 
 Hastie, T. et al. (2009) _The Elements of Statistical Learning_. Springer, New York. (pages 308 - 310)  
 \ 
 
-James, G. et al. (2013) _An Introduction to Statistical Learning_. Springer, New York. (Chapter 8)  
+James, G. et al. (2013) _An Introduction to Statistical Learning_. Springer, New York. (Ch. 8)  
+\ 
+
+Maindonald, J. and Braun, W. J. (2010) _Data Analysis and Graphics Using R_. Cambridge, UK. (Ch. 11)  
 \ 
 
 Therneau, T. and Atkinson, E. (2014) _An Introduction to Recursive Partitioning Using the RPART Routines_. Included  with `rpart` package.

@@ -12,7 +12,8 @@ library(rpart)
 
 # Classification Tree
 
-glaucoma <- read.csv("Glaucoma.csv")
+# glaucoma <- read.csv("Glaucoma.csv")
+glaucoma <- read.csv("http://people.virginia.edu/~jcf2d/data/Glaucoma.csv")
 # About Glaucoma.csv
 
 # Contains 98 normal and 98 glaucomatous subjects matched by age and sex. The 
@@ -27,8 +28,9 @@ glaucoma <- read.csv("Glaucoma.csv")
 # Analyses using R.
 
 
-# fit classification tree; "~ ." means use all predictors in data frame
-gfit <- rpart(Class ~ ., data=glaucoma)
+# fit classification tree; "~ ." means use all predictors in data frame;
+# specify method = "class" for classification tree
+gfit <- rpart(Class ~ ., method = "class", data=glaucoma)
 
 # plot tree
 # create the tree branches
@@ -49,7 +51,7 @@ text(gfit)
 plot(gfit, branch=0, uniform=TRUE, margin=0.05)
 text(gfit)
 
-# playing around. branch=0.5 combines square and v-shaped branches;
+# playing around: branch=0.5 combines square and v-shaped branches;
 # compress = TRUE attempts a more compact arrangement of the tree.
 plot(gfit, branch=0.5, margin=0.05, compress=TRUE)
 text(gfit)
@@ -66,7 +68,7 @@ text(gfit, use.n=TRUE)
 plot(gfit, margin=0.1)
 text(gfit, all=TRUE)
 
-# use.n and all combined; a little cluttered
+# use.n and all combined; very cluttered
 plot(gfit, margin=0.1)
 text(gfit, use.n=TRUE, all=TRUE)
 
@@ -76,18 +78,7 @@ text(gfit, use.n=TRUE, all=TRUE)
 
 # cex = character expansion; set size of font as a percentage of "normal" size
 plot(gfit, margin=0.1)
-text(gfit, use.n=TRUE, all=TRUE, cex=0.75)
-
-
-
-# another option is to change R graphics parameters
-op <- par(mar = rep(0.1, 4)) # make margins smaller in plot region
-plot(gfit, margin=.05)
-text(gfit, use.n = TRUE)
-# restore default graphics parameters
-par(op)
-
-
+text(gfit, use.n=TRUE, cex=0.9)
 
 # About the tree: 
 
@@ -107,7 +98,8 @@ par(op)
 
 # Regression Tree
 
-forbes <- read.csv("Forbes2000.csv")
+# forbes <- read.csv("Forbes2000.csv")
+forbes <- read.csv("http://people.virginia.edu/~jcf2d/data/Forbes2000.csv")
 # About Forbes.csv
 
 # The Forbes 2000 list is a ranking of the world's biggest companies in 2004, 
@@ -120,7 +112,8 @@ forbes <- read.csv("Forbes2000.csv")
 # Source: Torsten Hothorn and Brian Everitt (2006), A Handbook of Statistical
 # Analyses using R.
 
-ftree <- rpart(profits ~ assets + marketvalue + sales, data=forbes)
+# Fit a regression tree; use method = "anova" for continuous response
+ftree <- rpart(profits ~ assets + marketvalue + sales, method = "anova", data=forbes)
 plot(ftree, margin=0.05)
 text(ftree, cex = 0.75)
 
@@ -236,11 +229,6 @@ par(op)
 28 / 120
 92 / 120
 
-# compare selected split to 1st runner-up:
-# mhcg < 0.1695  improve=8.738643,
-# mhci < 0.099   improve=7.836770
-
-
 # calculate improvement
 196 * (
   (120/196 * (2 * 28/120 * 92/120)) - # P(node 3) * node 3 purity
@@ -248,18 +236,6 @@ par(op)
     (113/196 * (2 * 21/113 * 92/113)) # P(node 7) * node 7 purity 
 )
 
-# Let's compare improvement in purity again.
-# recall observations in node 3 have varg >= 0.209
-op <- par(mfrow=c(1,2))
-stripchart(mhcg ~ Class, data=glaucoma, main="mhcg < 0.1695", 
-           vertical = T, pch=1, method = "jitter",
-           subset= varg >= 0.209)
-abline(h=0.1695, col="red")
-stripchart(mhci ~ Class, data=glaucoma, main="mhci < 0.099", 
-           vertical = T, pch=1, method = "jitter",
-           subset= varg >= 0.209)
-abline(h=0.099, col="red")
-par(op)
 
 
 # Surrogate splits
@@ -267,13 +243,19 @@ par(op)
 # These are splits that substitute for the primary split in the event an
 # observation is missing a value for the primary split.
 
-
-# Node number 1: 196 observations
+# 
+# Node number 1: 196 observations,    complexity param=0.6530612
+#   predicted class=glaucoma  expected loss=0.5  P(node) =1
+#     class counts:    98    98
+#    probabilities: 0.500 0.500 
 # left son=2 (76 obs) right son=3 (120 obs)
 # Primary splits:
-#   varg < 0.209   to the left,  improve=44.01404, (0 missing)
+#     varg < 0.209   to the left,  improve=44.01404, (0 missing)
+#     ....
 # Surrogate splits:
-#   varn < 0.0895  to the left,  agree=0.934, adj=0.829, (0 split)
+#     varn < 0.0895  to the left,  agree=0.934, adj=0.829, (0 split)
+#     ....
+
 
 # agree=0.934
 # This is proportion of observations that split in the same direction as the
@@ -289,11 +271,10 @@ round(sum(diag(tab))/sum(tab),3)
 
 # adj=0.829
 
-# This is the adjusted agreement that takes into account the "majority rule". In
-# other words, if there were no surrogates we could send observations in the 
-# same direction as the majority. In this case the majority of 120 went to the 
-# right. If we substract 120 from the numerator and denominator of our original
-# "agree" calculation we get the adjusted agreement:
+# This is the adjusted agreement that takes into account the "majority rule". If
+# we used "majority rule", we would have sent 120 obs (3 + 117) in the correct 
+# direction. If we subtract those cases from the numerator and denominator of
+# our original "agree" calculation, we get the adjusted agreement:
 round((183 - 120)/(196 - 120),3)
 
 # Variable importance
@@ -385,10 +366,13 @@ summary(lm(profits ~ (marketvalue < 32.715), data=forbes, subset= marketvalue < 
 
 # Tree pruning ------------------------------------------------------------
 
-# The size of trees can be controled with the "control" paramter. Pass to 
-# control the function rpart.control() with arguments. For example, below we 
-# specify minsplit to be 2 and 90, respectively. This tells rpart to NOT attempt
-# a split if there are less than 2 or 90 observations in a node.
+# The size of trees can be controled with the "control" parameter. Pass to 
+# control the function rpart.control() with arguments. 
+?rpart.control
+
+# For example, below we specify minsplit to be 2 and 90, respectively. This
+# tells rpart to NOT attempt a split if there are less than 2 or 90 observations
+# in a node.
 
 # Tree too big; fit is too good
 gfitB <- rpart(Class ~ ., data=glaucoma, control = rpart.control(minsplit = 2))
@@ -405,9 +389,9 @@ text(gfitS, use.n=TRUE, cex = 0.8)
 # printcp() prints a table of optimal prunings based on a complexity parameter.
 printcp(gfit)
 
-# This says that when CP is less than 0.653061 but greater than 0.071429, our 
-# tree will have one split. When CP is less than 0.071429 but greater than
-# 0.013605 it will have two splits.
+# This says that when CP is less than 0.653061 but greater than 0.071429, the
+# optimal pruning will have one split. When CP is less than 0.071429 but greater
+# than 0.013605 it will have two splits.
 
 
 # This information is also printed with each node in the summary:
@@ -419,8 +403,8 @@ printcp(gfit)
 # to add more branches.
 
 
-# plotcp() plots xerror vs cp. The dotted line is drawn 1SE above the minimum of
-# the curve.
+# plotcp() plots xerror vs cp. The dotted line is drawn 1-SE above the minimum
+# of the curve.
 plotcp(gfit)
 
 # Rule of thumb: select the smallest tree within one standard error of the
@@ -444,7 +428,7 @@ text(gfit2, use.n=TRUE)
 printcp(ftree)
 plotcp(ftree)
 
-# select tree with 3 splits and plot:
+# select tree with 4 splits and plot:
 ftree2 <- prune(ftree, cp=0.019)
 plot(ftree2, margin=0.2)
 text(ftree2, use.n=TRUE)
@@ -458,7 +442,7 @@ text(ftree2, use.n=TRUE)
 
 # Return probability predictions of pruned tree
 predict(gfit2)
-# vector of predicted classifications as a level number
+# vector of predicted classifications as a level number (1 = glaucoma, 2 = normal)
 predict(gfit2, type="vector")
 # vector of predicted classifications as a level name
 predict(gfit2, type="class")
@@ -466,11 +450,14 @@ predict(gfit2, type="class")
 # in the node, and the proportion of observations in the terminal node.
 predict(gfit2, type="matrix")
 
-# create a confusion matrix
-(cm1 <- table(predict(gfit2, type="class"), glaucoma$Class))
+# create a confusion matrix; truth on the rows, prediction on the columns:
+(cm1 <- table(glaucoma$Class, predict(gfit2, type="class")))
 addmargins(cm1)
 sum(diag(cm1))/sum(cm1) # percent correct
+1 - sum(diag(cm1))/sum(cm1) # percent incorrect
 
+21/98 # false negative rate
+6/98 # false positive rate
 
 # Regression trees
 # Predictions for same data used to build tree
@@ -491,14 +478,17 @@ glaucomaTest <- glaucoma[-train,]
 # build tree with training data (subset on train)
 gfit3 <- rpart(Class ~ ., data=glaucomaTrain)
 # predict Class of test data and compare to truth
-(cm2 <- table(predict(gfit3, type="class", newdata = glaucomaTest), glaucomaTest$Class))
+(cm2 <- table(glaucomaTest$Class, predict(gfit3, type="class", newdata = glaucomaTest)))
 addmargins(cm2)
 sum(diag(cm2))/sum(cm2) # percent correct
+1 - sum(diag(cm2))/sum(cm2) # percent incorrect
+
+# More conservative estimate of performance error
+
+# Back to presentation...
 
 
-
-# Bagging and Random Forests ----------------------------------------------
-
+# Trees have high variance ------------------------------------------------
 
 # The decision on how to prune a tree can vary between runs of cross-validation.
 
@@ -524,10 +514,13 @@ for(i in 1:50){
 table(ns)
 
 # Notice the variability in the suggested number of tree prunings. Two methods 
-# that help reduce the variance of decision trees and improve performace is
+# that help reduce the variance of decision trees and improve performance is
 # bagging and random forests.
 
-# bagging - bootstrap aggregation
+
+
+# bagging - bootstrap aggregation -----------------------------------------
+
 
 # resample data (with replacement) and grow one tree (B=1)
 bsamp <- sample(nrow(glaucoma), replace = TRUE)
@@ -541,10 +534,10 @@ table(predict(gl.fitB, newdata = glaucoma[-bsamp,], type="class"),
 
 # If we repeat the above we almost always get a different tree
 
-# We do this B times (usually 100, or 500) and evaluate the prediction for each 
-# observation left out of the bagging procedure. For example, if an observation
-# was predicted glaucoma 10 times and normal 23 times, we would classify as
-# "normal" (majority vote)
+# With bagging we do this B times (usually 500 or so) and evaluate the
+# prediction for each observation left out of the bagging procedure. For
+# example, if an observation was predicted glaucoma 10 times and normal 23
+# times, we would classify as "normal" (majority vote)
 
 
 # We can use the randomForest package for both bagging and random forests.
@@ -569,8 +562,8 @@ round((13+16)/nrow(glaucoma)*100,1)
 # on those observations NOT used to build the tree.
 
 # class error:
-16/(82+16) # false positives (0.1632653)
-13/(85+13) # false negatives (0.1326531)
+13/(85+13) # false positive rate
+16/(82+16) # false negative rate
 
 # Calling plot on the bag.gfit shows the classification error rates and OOB
 # rates as the number of trees increases
@@ -581,6 +574,20 @@ legend("topright", legend = c("OOB","glaucoma","normal"), col = 1:3, lty = 1:3)
 # going down one tree, we go down 500. The predicted classification that occurs
 # most often (ie, the majority vote) is the classification.
 
+# We could use our test and train data if we wanted.
+# Bagging with training data
+bag.gfit2 <- randomForest(Class ~ ., data=glaucomaTrain, mtry=62)
+bag.gfit2
+# prediction with test data
+p.out <- predict(bag.gfit2, newdata = glaucomaTest)
+# confusion matrix
+table(glaucomaTest$Class, p.out)
+11/(41 + 11) # false negative rate
+4/(4 + 42) # false positive rate
+
+# Since Bagging/Random Forests use OOB observations for predictions, not really
+# necessary to create test and training sets.
+
 # Variance importance plot
 varImpPlot(bag.gfit)
 varImpPlot(bag.gfit, n.var = 15)
@@ -590,7 +597,7 @@ varUsed(bag.gfit)
 data.frame(var=names(glaucoma)[-63], count=varUsed(bag.gfit))
 
 
-# view one of the trees
+# view one of the trees; k = which tree to extract
 getTree(bag.gfit, k=4, labelVar=TRUE)
 
 # to see the "votes" for the observations
@@ -605,7 +612,9 @@ bag.gfit$oob.times/500
 # the original observations, thus about 0.368 are used in checking the fit of a
 # bagged tree.
 
-# random forest
+
+# random forest -----------------------------------------------------------
+
 # mtry by default set to sqrt(p) for classification trees
 set.seed(123)
 rf.gfit <- randomForest(Class ~ ., data=glaucoma)
