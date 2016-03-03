@@ -12,7 +12,7 @@ output: beamer_presentation
 - Overview of how trees are constructed
 - How to interpret output from building trees
 - How to improve prediction accuracy of trees
-- Trees versus linear models
+- Trees versus linear models / Strengths and Weaknesses
 
 
 ## What are Classification and Regression Trees?
@@ -108,7 +108,7 @@ In the `rpart` package, a node must have at least 20 observations for it to atte
 
 ## A 2-dimensional example of classification tree
 
-Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
+Predict black or red classification based on X1 and X2 values. The prediction is based on majority in terminal node.
 
 
 ```{r cache=TRUE, echo=FALSE}
@@ -122,7 +122,7 @@ for(i in seq_along(X1)){
   Y[i] <- if(X1[i] > 4 & X2[i] < 9) rbinom(n = 1, size = 1, prob = 0.75) else 
     rbinom(n = 1, size = 1, prob = 0.25)
 }
-DF <- data.frame(Y=as.factor(Y),X1,X2)
+DF <- data.frame(Y=factor(Y, labels = c("black","red")),X1,X2)
 tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=25))
 op <- par(mfrow=c(1,2))
 plot(tout2, margin = 0.1)
@@ -136,11 +136,11 @@ par(op)
 
 ## A 2-dimensional example of classification tree
 
-Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
+Predict black or red classification based on X1 and X2 values. The prediction is based on majority in terminal node.
 
 
 ```{r cache=TRUE, echo=FALSE}
-
+DF <- data.frame(Y=factor(Y, labels = c("black","red")),X1,X2)
 tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=11))
 op <- par(mfrow=c(1,2))
 plot(tout2, margin = 0.1)
@@ -155,11 +155,11 @@ par(op)
 
 ## A 2-dimensional example of classification tree
 
-Predict black (0) or red (1) classification based on X1 and X2 values. The prediction is based on majority in terminal node.
+Predict black or red classification based on X1 and X2 values. The prediction is based on majority in terminal node.
 
 
 ```{r cache=TRUE, echo=FALSE}
-
+DF <- data.frame(Y=factor(Y, labels = c("black","red")),X1,X2)
 tout2 <- rpart(Y ~ X1 + X2, data=DF, method = "class", control=rpart.control(minsplit=9))
 op <- par(mfrow=c(1,2))
 plot(tout2, margin = 0.1)
@@ -312,7 +312,7 @@ Therefore pruning a tree can pose a challenge.
 
 ## How pruning works
 
-Pruning is basically variable selection. We build a large tree and then recursively snip off the least important splits.  
+We build a large tree, $T$, and then recursively snip off the least important splits.  
 \ 
 
 Importance is captured by the cost-complexity measure:
@@ -337,14 +337,14 @@ If $\alpha$ is large, the penalty is large and the tree will be small. The minim
 
 ## Selecting the optimal $\alpha$
 
-We use K-fold cross validation to help us find the optimal $\alpha$. That is, we divide our data into K folds (or sets), and then for each K:
+`rpart` use K-fold cross validation to find the optimal $\alpha$. That is, it divides our data into K folds (or sets), and then for each K:
 
 1. Hold out set K and grow a large tree with the other folds  
 2. Obtain a sequence of best subtrees as a function of $\alpha$  
 3. Evaluate the error for the left out set K (misclassification rate for classification trees; mean squared prediction error for regression trees)   
-4. Average the results for each value of $\alpha$ and pick $\alpha$ to minimize the error.
+4. Average the error results for each $\alpha$  
 
-Fortunately, `rpart` does this for us with a default of K = 10.
+`rpart` does this with a default of K = 10. When finished we select $\alpha$ with the lowest error rate and use that to prune the tree.
 
 ## Pruning results in `rpart`
 
